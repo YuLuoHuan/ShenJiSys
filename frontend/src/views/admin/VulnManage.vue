@@ -50,14 +50,16 @@
       <div class="modal-box" style="width:700px">
         <div class="modal-title">漏洞详情 <span style="cursor:pointer" @click="showDetail=false">✕</span></div>
         <table class="detail-table" v-if="curVuln">
-          <tr><td class="dl">文件路径</td><td>{{ curVuln.filepath }}</td></tr>
-          <tr><td class="dl">行号</td><td>{{ curVuln.lineno }}</td></tr>
-          <tr><td class="dl">规则名称</td><td>{{ curVuln.rname }}</td></tr>
-          <tr><td class="dl">漏洞类别</td><td>{{ curVuln.category }}</td></tr>
-          <tr><td class="dl">严重等级</td><td><span :class="sevClass(curVuln.severity)">{{ sevText(curVuln.severity) }}</span></td></tr>
-          <tr><td class="dl">漏洞代码</td><td><div class="code-block">{{ curVuln.codesnip }}</div></td></tr>
-          <tr><td class="dl">修复建议</td><td>{{ curVuln.suggestion }}</td></tr>
-          <tr><td class="dl">备注</td><td>{{ curVuln.remark || '—' }}</td></tr>
+          <tbody>
+            <tr><td class="dl">文件路径</td><td>{{ curVuln.filepath }}</td></tr>
+            <tr><td class="dl">行号</td><td>{{ curVuln.lineno }}</td></tr>
+            <tr><td class="dl">规则名称</td><td>{{ curVuln.rname }}</td></tr>
+            <tr><td class="dl">漏洞类别</td><td>{{ curVuln.category }}</td></tr>
+            <tr><td class="dl">严重等级</td><td><span :class="sevClass(curVuln.severity)">{{ sevText(curVuln.severity) }}</span></td></tr>
+            <tr><td class="dl">漏洞代码</td><td><div class="code-block">{{ curVuln.codesnip }}</div></td></tr>
+            <tr><td class="dl">修复建议</td><td>{{ curVuln.suggestion }}</td></tr>
+            <tr><td class="dl">备注</td><td>{{ curVuln.remark || '—' }}</td></tr>
+          </tbody>
         </table>
       </div>
     </div>

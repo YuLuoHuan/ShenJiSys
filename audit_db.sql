@@ -5,21 +5,22 @@ USE audit_platform;
 CREATE TABLE userinfo (
   uid INT NOT NULL AUTO_INCREMENT COMMENT '用户ID',
   uname VARCHAR(50) NOT NULL COMMENT '用户名',
-  passwd VARCHAR(50) NOT NULL COMMENT '登录密码明文',
+  passwd VARCHAR(255) NOT NULL COMMENT '登录密码哈希',
   realname VARCHAR(50) NOT NULL COMMENT '真实姓名',
   email VARCHAR(100) NOT NULL COMMENT '邮箱地址',
   rolecode TINYINT NOT NULL DEFAULT 2 COMMENT '角色1管理员2审计员',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '状态1启用0禁用',
   createtime DATETIME NOT NULL COMMENT '创建时间',
   PRIMARY KEY (uid),
-  UNIQUE KEY uk_uname (uname)
+  UNIQUE KEY uk_uname (uname),
+  UNIQUE KEY uk_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户信息表';
 
 CREATE TABLE secquestion (
   sqid INT NOT NULL AUTO_INCREMENT COMMENT '安全问题ID',
   uid INT NOT NULL COMMENT '关联用户ID',
   question VARCHAR(200) NOT NULL COMMENT '安全问题内容',
-  answer VARCHAR(100) NOT NULL COMMENT '答案明文',
+  answer VARCHAR(255) NOT NULL COMMENT '答案哈希',
   PRIMARY KEY (sqid),
   UNIQUE KEY uk_uid (uid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='密码找回安全问题表';
@@ -43,6 +44,7 @@ CREATE TABLE auditrule (
   category VARCHAR(50) NOT NULL COMMENT '漏洞类别',
   language VARCHAR(30) NOT NULL COMMENT '适用语言',
   pattern TEXT NOT NULL COMMENT '正则表达式',
+  rule_type TINYINT NOT NULL DEFAULT 1 COMMENT '规则类型1正则2AST',
   severity TINYINT NOT NULL DEFAULT 2 COMMENT '等级1低2中3高4危急',
   suggestion TEXT DEFAULT NULL COMMENT '修复建议',
   enabled TINYINT NOT NULL DEFAULT 1 COMMENT '1启用0禁用',
@@ -98,18 +100,18 @@ CREATE TABLE sysconfig (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表';
 
 INSERT INTO userinfo VALUES
-(1,'admin','123456','系统管理员','admin@auditpro.com',1,1,'2026-01-01 09:00:00'),
-(2,'auditor1','123456','张伟','zhangwei@auditpro.com',2,1,'2026-01-05 10:00:00'),
-(3,'auditor2','123456','李娜','lina@auditpro.com',2,1,'2026-01-08 10:00:00'),
-(4,'auditor3','123456','王强','wangqiang@auditpro.com',2,1,'2026-02-01 09:00:00'),
-(5,'manager1','123456','赵敏','zhaoming@auditpro.com',1,1,'2026-02-10 09:00:00');
+(1,'admin','pbkdf2:sha256:1000000$FZzF0ocMNkmWRgOO$5f3a2d3a0322fa5188eb942754f0d2619565731d82ff2188dd7cdb73e98e4be6','系统管理员','admin@auditpro.com',1,1,'2026-01-01 09:00:00'),
+(2,'auditor1','pbkdf2:sha256:1000000$cTh3JnXSiaqZaOq9$4002fb4a120acbdf4ac25a082577e44e332a6fced353d7ea09db99e3be366e70','张伟','zhangwei@auditpro.com',2,1,'2026-01-05 10:00:00'),
+(3,'auditor2','pbkdf2:sha256:1000000$GRDTbhf22Q6RejPQ$e43983c86c528db65da53d89d57e5096cba8359ee71e7f71cd2bf871b7685592','李娜','lina@auditpro.com',2,1,'2026-01-08 10:00:00'),
+(4,'auditor3','pbkdf2:sha256:1000000$i6y2t9sI1US1wXm3$386171f3293c59ff88f9d0c1e01338e514eff4fa6efe0f36ddc42bf88ecd5fba','王强','wangqiang@auditpro.com',2,1,'2026-02-01 09:00:00'),
+(5,'manager1','pbkdf2:sha256:1000000$uYfz3LMAAGFAiggk$6eec027b51a5b0b6c9e548788c12439ff136025c88e4cb23ae7a5463adc4125c','赵敏','zhaoming@auditpro.com',1,1,'2026-02-10 09:00:00');
 
 INSERT INTO secquestion VALUES
-(1,1,'您母亲的姓名是什么','王秀英'),
-(2,2,'您就读的第一所小学名称','朝阳小学'),
-(3,3,'您最喜欢的城市','北京'),
-(4,4,'您的出生地','上海'),
-(5,5,'您童年宠物的名字','小白');
+(1,1,'您母亲的姓名是什么','pbkdf2:sha256:1000000$PwYfHZC0SyTBwgY3$b92466af0b7c20d16672d66daae304fcf63e9a5b0a82b93930f0d13c02a4ecb1'),
+(2,2,'您就读的第一所小学名称','pbkdf2:sha256:1000000$mG5xz1EK6ZUTE4vH$f3516c5a29220de2324fcc25d93d6424e6d6f7dadad52e6c4a0902d7d2886f92'),
+(3,3,'您最喜欢的城市','pbkdf2:sha256:1000000$CBNqhTHdiiIfLhlH$741c070d120145f4cb0630dd681a4a21bac2adbd30a3e552b49feb431311c6ea'),
+(4,4,'您的出生地','pbkdf2:sha256:1000000$nTjOzG9VNJyDHmbs$8a515c503cadc5f9270f53be857f8f1a5ea7ae016584af421d86bc6fc734ac22'),
+(5,5,'您童年宠物的名字','pbkdf2:sha256:1000000$wIfv1sziWzw9loy8$630c2cd7ec309dbeba810541521378aa1b483d6ecc211c1f788bb48f61bd09f6');
 
 INSERT INTO project VALUES
 (1,'电商平台后端审计','Django电商后端SQL注入XSS检测','python','uploads/proj_1',1,2,'2026-01-10 09:00:00','2026-01-20 17:00:00'),
@@ -119,16 +121,21 @@ INSERT INTO project VALUES
 (5,'医疗系统渗透前置审计','医院HIS系统代码安全审计','java','uploads/proj_5',4,0,'2026-03-10 09:00:00',NULL);
 
 INSERT INTO auditrule VALUES
-(1,'Python SQL注入检测','sqli','python','execute\\s*\\(.*%',3,'使用参数化查询',1),
-(2,'Python命令注入检测','rce','python','os\\.system',4,'禁止用户输入传入shell',1),
-(3,'XSS跨站脚本检测','xss','all','innerHTML\\s*=',3,'输出内容做HTML转义',1),
-(4,'Java SQL注入检测','sqli','java','executeQuery.*\\+',3,'使用PreparedStatement',1),
-(5,'PHP代码执行检测','rce','php','eval\\s*\\(',4,'禁止eval执行用户输入',1),
-(6,'敏感信息硬编码','sensitive','all','password\\s*=',2,'使用环境变量存储密码',1),
-(7,'路径穿越检测','path','all','\\.\\.\\/|\\.\\.\\\\',3,'路径规范化白名单限制',1),
-(8,'PHP文件包含检测','path','php','include\\s*\\(',4,'禁止用户输入用于include',1),
-(9,'JS原型链污染检测','other','js','__proto__',2,'避免直接操作原型链',1),
-(10,'Java反序列化检测','other','java','ObjectInputStream',3,'反序列化数据严格校验',1);
+(1,'Python SQL注入检测','sqli','python','execute\\s*\\(.*%',1,3,'使用参数化查询',1),
+(2,'Python命令注入检测','rce','python','os\\.system',1,4,'禁止用户输入传入shell',1),
+(3,'XSS跨站脚本检测','xss','all','innerHTML\\s*=',1,3,'输出内容做HTML转义',1),
+(4,'Java SQL注入检测','sqli','java','executeQuery.*\\+',1,3,'使用PreparedStatement',1),
+(5,'PHP代码执行检测','rce','php','eval\\s*\\(',1,4,'禁止eval执行用户输入',1),
+(6,'敏感信息硬编码','sensitive','all','password\\s*=',1,2,'使用环境变量存储密码',1),
+(7,'路径穿越检测','path','all','\\.\\.\\/|\\.\\.\\\\',1,3,'路径规范化白名单限制',1),
+(8,'PHP文件包含检测','path','php','include\\s*\\(',1,4,'禁止用户输入用于include',1),
+(9,'JS原型链污染检测','other','js','__proto__',1,2,'避免直接操作原型链',1),
+(10,'Java反序列化检测','other','java','ObjectInputStream',1,3,'反序列化数据严格校验',1),
+(101,'Python SQL注入检测(AST)','sqli','python','ast_pattern',2,3,'使用参数化查询',1),
+(102,'Python命令注入检测(AST)','rce','python','ast_pattern',2,4,'禁止用户输入传入shell',1),
+(103,'Python eval/exec代码执行检测(AST)','rce','python','ast_pattern',2,4,'避免使用eval/exec执行用户输入',1),
+(104,'Python路径穿越检测(AST)','path','python','ast_pattern',2,3,'路径规范化白名单限制',1),
+(105,'Python硬编码密码检测(AST)','sensitive','python','ast_pattern',2,2,'使用环境变量存储密码',1);
 
 INSERT INTO scantask VALUES
 (1,1,2,2,100,86,86,'2026-01-15 10:00:00','2026-01-15 10:23:00'),

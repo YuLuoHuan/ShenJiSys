@@ -157,9 +157,54 @@ def download():
     repid = request.args.get('repid')
     if not repid:
         return fail('repid不能为空')
-    rep = query_one('SELECT pdfpath,repname FROM auditreport WHERE repid=%s', (repid,))
-    if not rep or not rep['pdfpath'] or not os.path.exists(rep['pdfpath']):
-        return fail('PDF文件不存在，请确认reportlab已安装', 404)
+    rep = query_one('SELECT pdfpath,repname,tid,pid,summary FROM auditreport WHERE repid=%s', (repid,))
+    if not rep:
+        return fail('报告不存在', 404)
+
+    # 如果PDF路径为空或文件不存在，尝试重新生成
+    if not rep['pdfpath'] or not os.path.exists(rep['pdfpath']):
+        if not HAS_REPORTLAB:
+            return fail('PDF文件不存在，且reportlab未安装，无法重新生成', 404)
+
+        # 尝试重新生成PDF
+        try:
+            # 获取项目信息
+            proj = query_one('SELECT * FROM project WHERE pid=%s', (rep['pid'],))
+            if not proj:
+                return fail('关联项目不存在', 404)
+
+            # 获取漏洞信息
+            vulns = query_all(
+                'SELECT v.*,r.rname FROM vulninfo v LEFT JOIN auditrule r ON r.rid=v.rid WHERE v.tid=%s',
+                (rep['tid'],)
+            )
+
+            # 生成PDF路径
+            pdfpath = os.path.join(REPORT_DIR, f'report_{repid}.pdf')
+
+            # 生成PDF
+            _build_pdf(
+                repid=repid,
+                repname=rep['repname'],
+                summary=rep['summary'] or '',
+                project=proj,
+                vulns=vulns,
+                pdfpath=pdfpath
+            )
+
+            # 更新数据库
+            execute('UPDATE auditreport SET pdfpath=%s WHERE repid=%s', (pdfpath, repid))
+            rep['pdfpath'] = pdfpath
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return fail(f'PDF重新生成失败: {str(e)}', 500)
+
+    # 再次检查文件是否存在
+    if not os.path.exists(rep['pdfpath']):
+        return fail('PDF文件生成失败，请稍后重试', 404)
+
     return send_file(rep['pdfpath'], as_attachment=True,
                      download_name=f'{rep["repname"]}.pdf')
 

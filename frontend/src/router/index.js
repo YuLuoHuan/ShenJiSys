@@ -4,6 +4,7 @@ import { useUserStore } from '@/stores/user.js'
 const routes = [
   { path: '/',        redirect: '/login' },
   { path: '/login',   component: () => import('@/views/auth/LoginPage.vue'),    meta: { guest: true } },
+  { path: '/register',component: () => import('@/views/auth/RegisterPage.vue'), meta: { guest: true } },
   { path: '/forgot',  component: () => import('@/views/auth/ForgotPasswd.vue'), meta: { guest: true } },
 
   // 管理员布局

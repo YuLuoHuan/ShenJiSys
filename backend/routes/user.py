@@ -2,9 +2,11 @@
 """
 用户管理接口：增删改查、角色分配（管理员功能）
 """
+import re
 from flask import Blueprint, request
 from datetime import datetime
 from backend.db import query_one, query_all, execute, execute_lastid, ok, fail
+from backend.utils.password import hash_password, validate_password_strength, validate_email
 
 user_bp = Blueprint('user', __name__)
 
@@ -62,15 +64,40 @@ def add_user():
     realname = data.get('realname', '').strip()
     email = data.get('email', '').strip()
     rolecode = int(data.get('rolecode', 2))
+
     if not uname or not realname or not email:
         return fail('必填字段不完整')
+
+    # 用户名格式验证
+    if not re.match(r'^[a-zA-Z0-9_]{3,20}$', uname):
+        return fail('用户名只能包含字母、数字和下划线，长度3-20位')
+
+    # 邮箱格式验证
+    if not validate_email(email):
+        return fail('邮箱格式不正确')
+
+    # 密码强度检查
+    strength_check = validate_password_strength(passwd)
+    if not strength_check['valid']:
+        return fail(f'密码强度不足：{strength_check["msg"]}')
+
+    # 检查用户名是否已存在
     exist = query_one('SELECT uid FROM userinfo WHERE uname=%s', (uname,))
     if exist:
         return fail('用户名已存在')
+
+    # 检查邮箱是否已注册
+    exist_email = query_one('SELECT uid FROM userinfo WHERE email=%s', (email,))
+    if exist_email:
+        return fail('邮箱已被注册')
+
+    # 生成密码哈希
+    hashed_password = hash_password(passwd)
+
     uid = execute_lastid(
         'INSERT INTO userinfo(uname,passwd,realname,email,rolecode,status,createtime) '
         'VALUES(%s,%s,%s,%s,%s,1,%s)',
-        (uname, passwd, realname, email, rolecode, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        (uname, hashed_password, realname, email, rolecode, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     )
     return ok({'uid': uid}, '用户创建成功')
 

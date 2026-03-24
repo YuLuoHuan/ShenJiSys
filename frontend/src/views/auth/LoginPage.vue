@@ -21,6 +21,7 @@
         </button>
       </form>
       <div class="login-links">
+        <RouterLink to="/register">注册账户</RouterLink> ·
         <RouterLink to="/forgot">忘记密码？</RouterLink>
       </div>
     </div>

@@ -1,9 +1,38 @@
 # -*- coding: utf-8 -*-
 """
-代码扫描引擎：真实正则规则匹配，遍历目录中所有源码文件
+代码扫描引擎：支持正则规则匹配和AST分析
 """
 import os
 import re
+
+# AST分析器导入
+try:
+    from .python_ast import PythonASTAnalyzer
+    AST_SUPPORT = True
+except ImportError:
+    AST_SUPPORT = False
+    PythonASTAnalyzer = None
+
+
+def _get_ast_analyzer(language: str):
+    """
+    根据语言获取AST分析器
+    :param language: 语言标识
+    :return: AST分析器实例或None
+    """
+    if not AST_SUPPORT:
+        return None
+
+    # 目前只支持Python
+    if language == 'python':
+        return PythonASTAnalyzer()
+
+    # 未来可以添加其他语言的AST分析器
+    # elif language == 'java':
+    #     from .java_ast import JavaASTAnalyzer
+    #     return JavaASTAnalyzer()
+
+    return None
 
 # 项目根目录绝对路径（code/），用于将相对路径转为绝对路径
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -41,6 +70,72 @@ def get_scannable_files(sourcepath: str, language: str) -> list:
             if ext.lower() in all_exts:
                 file_list.append(os.path.join(root, f))
     return file_list
+
+
+def _split_rules_by_type(rules: list) -> tuple:
+    """
+    将规则按类型分开
+    :param rules: 规则列表
+    :return: (regex_rules, ast_rules)
+    """
+    regex_rules = []
+    ast_rules = []
+    for rule in rules:
+        # 规则类型：1=正则，2=AST
+        rule_type = rule.get('rule_type', 1)
+        if rule_type == 2 and AST_SUPPORT:
+            ast_rules.append(rule)
+        else:
+            regex_rules.append(rule)
+    return regex_rules, ast_rules
+
+
+def scan_file_with_ast(filepath: str, ast_rules: list, language: str) -> list:
+    """
+    使用AST分析器扫描单个文件
+    :param filepath: 文件绝对路径
+    :param ast_rules: AST规则列表
+    :param language: 文件语言
+    :return: 命中漏洞列表 [{rid, filepath, lineno, codesnip, severity}, ...]
+    """
+    hits = []
+
+    if not ast_rules or not AST_SUPPORT:
+        return hits
+
+    analyzer = _get_ast_analyzer(language)
+    if not analyzer:
+        return hits
+
+    try:
+        # 目前使用分析器内置模式
+        ast_results = analyzer.scan_file(filepath)
+
+        # 将AST结果转换为统一格式
+        for result in ast_results:
+            # AST结果中的pattern_id对应内置模式的ID
+            pattern_id = result.get('pattern_id', 0)
+
+            # 查找对应的数据库规则
+            matched_rule = None
+            for rule in ast_rules:
+                if rule.get('rid') == pattern_id:
+                    matched_rule = rule
+                    break
+
+            if matched_rule:
+                hits.append({
+                    'rid': matched_rule['rid'],
+                    'filepath': filepath,
+                    'lineno': result.get('lineno', 1),
+                    'codesnip': result.get('code_snippet', '')[:500],
+                    'severity': matched_rule['severity'],
+                })
+    except Exception as e:
+        # 忽略AST分析错误，继续扫描
+        print(f"AST扫描错误 {filepath}: {e}")
+
+    return hits
 
 
 def scan_file(filepath: str, rules: list) -> list:
@@ -87,10 +182,23 @@ def run_scan(sourcepath: str, language: str, rules: list,
     files = get_scannable_files(sourcepath, language)
     total = len(files)
     all_hits = []
+
+    # 分离正则规则和AST规则
+    regex_rules, ast_rules = _split_rules_by_type(rules)
+
     for idx, fpath in enumerate(files, start=1):
-        hits = scan_file(fpath, rules)
-        all_hits.extend(hits)
+        # 正则规则扫描
+        if regex_rules:
+            regex_hits = scan_file(fpath, regex_rules)
+            all_hits.extend(regex_hits)
+
+        # AST规则扫描
+        if ast_rules:
+            ast_hits = scan_file_with_ast(fpath, ast_rules, language)
+            all_hits.extend(ast_hits)
+
         if progress_callback:
             progress_callback(idx, total)
+
     return all_hits, total, total
 

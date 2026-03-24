@@ -4,6 +4,7 @@ import http from '@/utils/http.js'
 // ========== 认证 ==========
 export const authApi = {
   login:          data  => http.post('/auth/login', data),
+  register:       data  => http.post('/auth/register', data),
   getSecQuestion: uname => http.get('/auth/secquestion', { params: { uname } }),
   verifyAnswer:   data  => http.post('/auth/verifyanswer', data),
   resetPasswd:    data  => http.post('/auth/resetpasswd', data),
